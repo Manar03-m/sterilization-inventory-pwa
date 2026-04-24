@@ -1,10 +1,10 @@
 :root {
-  --bg: #f4f7f8;
+  --bg: #f7f2f8;
   --card: #ffffff;
-  --accent: #0f766e;
-  --accent-soft: #d9f2ef;
-  --text: #1f2937;
-  --border: #d1d5db;
+  --accent: #8b5e83;
+  --accent-soft: #f2e8f1;
+  --text: #3f2d3b;
+  --border: #e6d7e4;
   --danger: #b91c1c;
 }
 
@@ -142,8 +142,8 @@ button[type="submit"] {
 
 .stock-badge {
   font-size: 0.9rem;
-  background: #eef2ff;
-  color: #1e3a8a;
+  background: #efe4f0;
+  color: #6f3f67;
   border-radius: 999px;
   padding: 0.2rem 0.7rem;
 }
@@ -200,9 +200,9 @@ button[type="submit"] {
 }
 
 .report-meta {
-  background: #ecfeff;
-  border: 1px solid #a5f3fc;
-  color: #155e75;
+  background: #f5edf6;
+  border: 1px solid #dbc5d8;
+  color: #6b3d64;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   margin: 0.7rem 0;
