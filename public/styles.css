@@ -157,6 +157,13 @@ button[type="submit"] {
   width: 130px;
 }
 
+.product-controls {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) auto auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+
 .product-item.low-stock {
   border-color: #ef4444;
   background: #fff5f5;
@@ -252,9 +259,45 @@ button[type="submit"] {
 }
 
 @media (max-width: 700px) {
+  .app-header {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .app-header h1 {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .container {
+    margin: 0.6rem auto;
+    padding: 0 0.55rem;
+  }
+
   .inline-form,
   .grid-3,
   .grid-4 {
     grid-template-columns: 1fr;
+  }
+
+  .product-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .product-head input {
+    min-width: 0;
+  }
+
+  .stock-badge {
+    align-self: flex-start;
+  }
+
+  .product-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .product-controls input,
+  .product-controls button {
+    width: 100%;
   }
 }
