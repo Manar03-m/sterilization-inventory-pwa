@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>مستودع التعقيم</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./icons/icon-192.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>نظام مستودع قسم التعقيم</h1>
+      <button id="installBtn" class="ghost-btn hidden">تثبيت التطبيق</button>
+    </header>
+
+    <main class="container">
+      <section id="topNavCard" class="card">
+        <h2>الدخول</h2>
+        <div class="row">
+          <button class="tab-btn active" data-tab="employee">سحب موظف</button>
+          <button class="tab-btn" data-tab="admin">لوحة المسؤول</button>
+        </div>
+      </section>
+
+      <section id="employeeSection" class="card">
+        <h2>تسجيل سحب</h2>
+        <div id="employeeNoteBox" class="note-box hidden"></div>
+        <form id="withdrawForm">
+          <label>رمز الموظف</label>
+          <input id="employeeCode" type="password" required placeholder="ادخل رمز الموظف" />
+
+          <label>اسم الموظف</label>
+          <input id="employeeName" type="text" disabled placeholder="يظهر تلقائيا" />
+
+          <label>المنتج</label>
+          <select id="productSelect" required>
+            <option value="">-- اختر المنتج --</option>
+          </select>
+
+          <label>الكمية</label>
+          <input id="quantity" type="number" min="1" required placeholder="ادخل الكمية" />
+
+          <button type="submit">تسجيل السحب</button>
+        </form>
+      </section>
+
+      <section id="adminSection" class="card hidden">
+        <h2>لوحة المسؤول</h2>
+        <form id="adminLoginForm" class="inline-form">
+          <input id="adminCode" type="password" placeholder="رمز المسؤول" required />
+          <button type="submit">دخول المسؤول</button>
+        </form>
+
+        <div id="adminPanel" class="hidden">
+          <div class="row">
+            <button id="refreshBtn" class="ghost-btn">تحديث</button>
+            <button id="seedProductsBtn" class="ghost-btn">إضافة المنتجات الأساسية</button>
+            <button id="weeklyReportBtn" class="ghost-btn">عرض الجرد الاسبوعي</button>
+          </div>
+
+          <section class="sub-card">
+            <h3>إدارة الموظفين</h3>
+            <form id="employeeForm" class="grid-3">
+              <input id="newEmployeeName" type="text" placeholder="اسم الموظف" required />
+              <input id="newEmployeeCode" type="text" placeholder="رمز الموظف" required />
+              <button type="submit">إضافة موظف</button>
+            </form>
+            <div class="row" style="margin-bottom: 0.7rem">
+              <button id="seedEmployeesBtn" class="ghost-btn">إضافة الموظفين الأساسيين</button>
+            </div>
+            <h4>الموظفون النشطون</h4>
+            <div id="employeesList" class="list"></div>
+            <h4>الموظفون المعطلون (يمكن حذفهم)</h4>
+            <div id="disabledEmployeesList" class="list"></div>
+          </section>
+
+          <section class="sub-card">
+            <h3>إدارة المنتجات والمخزون</h3>
+            <form id="productForm" class="grid-4">
+              <input id="newProductName" type="text" placeholder="اسم المنتج" required />
+              <input id="newProductStock" type="number" min="0" placeholder="الكمية" required />
+              <input id="newProductMin" type="number" min="0" placeholder="الحد الأدنى" required />
+              <button type="submit">إضافة منتج</button>
+            </form>
+            <div id="productsList" class="list"></div>
+          </section>
+
+          <section class="sub-card">
+            <h3>ملاحظة للموظفين</h3>
+            <form id="noticeForm" class="grid-3">
+              <input id="noticeInput" type="text" placeholder="اكتب الملاحظة هنا" required />
+              <button type="submit">حفظ الملاحظة</button>
+              <button type="button" id="clearNoticeBtn" class="danger-btn">حذف الملاحظة</button>
+            </form>
+          </section>
+
+          <section class="sub-card">
+            <h3>آخر عمليات السحب</h3>
+            <div id="withdrawalsList" class="list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="reportSection" class="card hidden">
+        <h2>الجرد الأسبوعي</h2>
+        <div class="row">
+          <select id="reportDaysSelect">
+            <option value="7">آخر 7 أيام</option>
+            <option value="5">آخر 5 أيام</option>
+            <option value="3">آخر 3 أيام</option>
+            <option value="30">آخر 30 يوم</option>
+            <option value="custom">عدد أيام مخصص</option>
+          </select>
+          <input id="reportDaysCustom" type="number" min="1" class="hidden" placeholder="ادخل عدد الأيام" />
+          <button id="applyReportRangeBtn" class="ghost-btn">تحديث الجرد</button>
+          <button id="printReportBtn" class="ghost-btn">طباعة / حفظ PDF</button>
+          <button id="closeReportBtn" class="ghost-btn">إغلاق</button>
+        </div>
+        <div id="reportMeta" class="report-meta"></div>
+        <h3>السحب حسب المنتج</h3>
+        <div id="reportByProduct" class="list report-table-wrap"></div>
+        <h3>السحب حسب الموظف</h3>
+        <div id="reportByEmployee" class="list report-table-wrap"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
