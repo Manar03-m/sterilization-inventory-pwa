@@ -271,32 +271,43 @@ function renderProductsList() {
         </span>
       </div>
       <div class="row product-controls">
+        <input data-name-input="${prod.id}" type="text" value="${prod.name}" placeholder="اسم المنتج" />
         <input data-stock-input="${prod.id}" type="number" min="0" value="${stock}" placeholder="الكمية" />
         <input data-min-input="${prod.id}" type="number" min="0" value="${minStock}" placeholder="الحد الأدنى" />
-        <button data-save-product="${prod.id}">حفظ الكمية والحد الأدنى</button>
+        <button data-save-product="${prod.id}">حفظ التعديلات</button>
         <button data-delete="${prod.id}" class="danger-btn">حذف</button>
       </div>
     `;
 
     row.querySelector(`[data-save-product="${prod.id}"]`).addEventListener("click", async () => {
+      const nameInput = row.querySelector(`[data-name-input="${prod.id}"]`);
       const stockInput = row.querySelector(`[data-stock-input="${prod.id}"]`);
       const minInput = row.querySelector(`[data-min-input="${prod.id}"]`);
+      const newName = String(nameInput.value || "").trim();
       const newStock = Number(stockInput.value);
       const newMinStock = Number(minInput.value);
-      if (!Number.isFinite(newStock) || newStock < 0 || !Number.isFinite(newMinStock) || newMinStock < 0) {
-        toast("ادخلي قيم صحيحة للكمية والحد الأدنى");
+      if (!newName) {
+        toast("اسم المنتج مطلوب");
         return;
       }
-      await saveProductNumbers(prod.id, newStock, newMinStock);
+      if (!Number.isFinite(newStock) || newStock < 0 || !Number.isFinite(newMinStock) || newMinStock < 0) {
+        toast("ادخلي قيم صحيحة للاسم والكمية والحد الأدنى");
+        return;
+      }
+      await saveProductDetails(prod.id, newName, newStock, newMinStock);
     });
     row.querySelector(`[data-delete="${prod.id}"]`).addEventListener("click", () => removeProduct(prod.id));
     refs.productsList.appendChild(row);
   });
 }
 
-async function saveProductNumbers(productId, nextStock, nextMinStock) {
-  await updateDoc(doc(db, "products", productId), { stock: nextStock, minStock: nextMinStock });
-  toast("تم حفظ الكمية والحد الأدنى");
+async function saveProductDetails(productId, nextName, nextStock, nextMinStock) {
+  await updateDoc(doc(db, "products", productId), {
+    name: nextName,
+    stock: nextStock,
+    minStock: nextMinStock,
+  });
+  toast("تم حفظ التعديلات");
   await loadProducts();
 }
 
