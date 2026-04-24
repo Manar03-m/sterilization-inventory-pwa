@@ -135,6 +135,11 @@ button[type="submit"] {
   margin-bottom: 0.6rem;
 }
 
+.product-head input {
+  flex: 1;
+  min-width: 180px;
+}
+
 .stock-badge {
   font-size: 0.9rem;
   background: #eef2ff;

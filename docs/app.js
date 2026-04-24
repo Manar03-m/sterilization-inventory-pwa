@@ -265,13 +265,12 @@ function renderProductsList() {
     row.className = `product-item ${isLow ? "low-stock" : ""}`;
     row.innerHTML = `
       <div class="product-head">
-        <strong>${prod.name}</strong>
+        <input data-name-input="${prod.id}" type="text" value="${prod.name}" placeholder="اسم المنتج" />
         <span class="stock-badge ${isLow ? "danger" : ""}">
           الكمية: ${stock} | الحد الأدنى: ${minStock}
         </span>
       </div>
       <div class="row product-controls">
-        <input data-name-input="${prod.id}" type="text" value="${prod.name}" placeholder="اسم المنتج" />
         <input data-stock-input="${prod.id}" type="number" min="0" value="${stock}" placeholder="الكمية" />
         <input data-min-input="${prod.id}" type="number" min="0" value="${minStock}" placeholder="الحد الأدنى" />
         <button data-save-product="${prod.id}">حفظ التعديلات</button>
