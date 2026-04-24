@@ -22,7 +22,6 @@ const db = getFirestore(app);
 
 const refs = {
   topNavCard: document.getElementById("topNavCard"),
-  installBtn: document.getElementById("installBtn"),
   tabBtns: document.querySelectorAll(".tab-btn"),
   employeeSection: document.getElementById("employeeSection"),
   adminSection: document.getElementById("adminSection"),
@@ -71,20 +70,6 @@ let productsCache = [];
 let employeesCache = [];
 let previousTabBeforeReport = "employee";
 let currentReportDays = 7;
-
-function getInstallHelpMessage() {
-  const ua = navigator.userAgent.toLowerCase();
-  const isIOS = /iphone|ipad|ipod/.test(ua);
-  const isAndroid = /android/.test(ua);
-
-  if (isIOS) {
-    return "على iPhone: افتحي زر المشاركة ثم Add to Home Screen.";
-  }
-  if (isAndroid) {
-    return "على Android: من قائمة المتصفح اختاري Install app أو Add to Home screen.";
-  }
-  return "من إعدادات المتصفح اختاري Install app أو Add to Home screen.";
-}
 const DEFAULT_PRODUCT_STOCK = 100;
 const DEFAULT_MIN_STOCK = 20;
 
@@ -672,22 +657,10 @@ refs.clearNoticeBtn.addEventListener("click", async () => {
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  refs.installBtn.classList.remove("hidden");
-});
-
-refs.installBtn.addEventListener("click", async () => {
-  if (!deferredPrompt) {
-    alert(getInstallHelpMessage());
-    return;
-  }
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  refs.installBtn.classList.add("hidden");
 });
 
 window.addEventListener("appinstalled", () => {
-  refs.installBtn.classList.add("hidden");
+  deferredPrompt = null;
 });
 
 if ("serviceWorker" in navigator) {
@@ -697,4 +670,3 @@ if ("serviceWorker" in navigator) {
 switchTab("employee");
 loadProducts();
 loadNotice();
-refs.installBtn.classList.remove("hidden");
