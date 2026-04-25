@@ -1,4 +1,4 @@
-# Sterilization Department Inventory System (Free)
+# Sterilization Department Inventory System 
 
 This project is a web-based inventory and withdrawal tracking system built for **Al-Kindi Hospital**.  
 It runs as a PWA and can be used on mobile and desktop browsers.
