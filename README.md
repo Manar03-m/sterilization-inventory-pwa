@@ -1,29 +1,29 @@
-# نظام مستودع قسم التعقيم (مجاني)
+# Sterilization Department Inventory System (Free)
 
-تطبيق ويب بسيط يعمل كـ PWA (قابل للتثبيت كأيقونة على الموبايل/الكمبيوتر) مع:
+This project is a web-based inventory and withdrawal tracking system built for **Al-Kindi Hospital**.  
+It runs as a PWA and can be used on mobile and desktop browsers.
 
-- سحب موظف برمز موظف
-- لوحة مسؤول لإضافة/تعطيل الموظفين
-- إدارة المنتجات والمخزون
-- تقرير جرد أسبوعي (حسب المنتج + حسب الموظف)
-- تخزين البيانات على Firebase Firestore
+## Features
 
-## 1) تجهيز Firebase (مرة واحدة)
+- Employee withdrawal by personal code
+- Admin dashboard for adding/disabling/deleting employees
+- Product and stock management
+- Weekly/custom period audit reports (by product and by employee)
+- Notes from admin visible to employees
+- Data storage using Firebase Firestore
 
-1. افتحي [Firebase Console](https://console.firebase.google.com/).
-2. أنشئي مشروع جديد.
-3. من **Build > Firestore Database**:
-   - أنشئي قاعدة Firestore.
-   - اختاري production mode.
-4. من **Project settings > General > Your apps**:
-   - أضيفي Web App.
-   - انسخي إعدادات Firebase.
-5. افتحي الملف `public/firebase-config.js` وحطي القيم مكان `PUT_YOUR_...`.
-6. غيّري `ADMIN_CODE` لرمز مسؤول آمن.
+## 1) Firebase Setup (One Time)
 
-## 2) قواعد Firestore المقترحة
+1. Open [Firebase Console](https://console.firebase.google.com/).
+2. Create a new Firebase project.
+3. Go to **Firestore Database** and create a database.
+4. In **Project settings > General > Your apps**, add a Web App.
+5. Copy Firebase config values into `public/firebase-config.js`.
+6. Set your admin code in `ADMIN_CODE`.
 
-من Firestore > Rules ضعي مؤقتا:
+## 2) Firestore Rules (Quick Start)
+
+Use these rules temporarily for setup/testing:
 
 ```txt
 rules_version = '2';
@@ -36,40 +36,32 @@ service cloud.firestore {
 }
 ```
 
-> لاحقًا نقدر نرفع الأمان باستخدام Firebase Auth. حاليا هذا أسهل تشغيل سريع.
+Later, you should secure access with Firebase Authentication and stricter rules.
 
-## 3) تشغيل محلي للتجربة
-
-افتحي Terminal داخل المشروع ثم:
+## 3) Run Locally
 
 ```bash
 cd public
 python -m http.server 8080
 ```
 
-ثم افتحي:
-[http://localhost:8080](http://localhost:8080)
+Then open: [http://localhost:8080](http://localhost:8080)
 
-## 4) نشر مجاني دائم على GitHub Pages
+## 4) Deploy on GitHub Pages
 
-1. أنشئي Repository جديد على GitHub.
-2. ارفعي ملفات المشروع.
-3. في GitHub: Settings > Pages
-   - Source: Deploy from branch
-   - Branch: `master` (أو `main`)
-   - Folder: `/public`
-4. احفظي، وانتظري دقيقة.
-5. سيظهر رابط الموقع، مثال:
-   - `https://username.github.io/repo-name/`
+This repository is configured to deploy from:
 
-## 5) تثبيت التطبيق كأيقونة
+- Branch: `main`
+- Folder: `/docs`
 
-- Android (Chrome): افتحي الرابط > القائمة > Add to Home screen.
-- Desktop (Chrome/Edge): من شريط العنوان يظهر زر Install.
+After pushing changes to `main`, GitHub Pages updates automatically.
 
-## ملاحظات
+Live URL:
+- `https://manar03-m.github.io/sterilization-inventory-pwa/`
 
-- الموظف يدخل فقط: `رمز الموظف` + المنتج + الكمية.
-- المسؤول فقط يدخل لوحة الإدارة برمز المسؤول.
-- عند السحب يتم خصم المخزون تلقائيًا.
-- زر **عرض الجرد الأسبوعي** يعطي مجموع السحب خلال 7 أيام.
+## Notes
+
+- Employees only enter: employee code, product, and quantity.
+- Admin access is protected by `ADMIN_CODE`.
+- Stock is reduced automatically after each withdrawal.
+- Reports support dynamic day range and print/PDF export from browser.
