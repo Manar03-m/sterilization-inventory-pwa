@@ -608,6 +608,13 @@ refs.closeReportBtn.addEventListener("click", () => closeReportPage());
 refs.reportDaysSelect.addEventListener("change", () => {
   const isCustom = refs.reportDaysSelect.value === "custom";
   refs.reportDaysCustom.classList.toggle("hidden", !isCustom);
+  if (isCustom) {
+    refs.reportDaysCustom.focus();
+    return;
+  }
+
+  currentReportDays = Number(refs.reportDaysSelect.value);
+  createWeeklyReport(currentReportDays);
 });
 
 refs.applyReportRangeBtn.addEventListener("click", async () => {
@@ -622,6 +629,19 @@ refs.applyReportRangeBtn.addEventListener("click", async () => {
     currentReportDays = Number(refs.reportDaysSelect.value);
   }
 
+  await createWeeklyReport(currentReportDays);
+  toast("تم تحديث الجرد");
+});
+
+refs.reportDaysCustom.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const customDays = Number(refs.reportDaysCustom.value);
+  if (!Number.isFinite(customDays) || customDays < 1) {
+    toast("ادخلي عدد أيام صحيح");
+    return;
+  }
+  currentReportDays = customDays;
   await createWeeklyReport(currentReportDays);
   toast("تم تحديث الجرد");
 });
