@@ -458,9 +458,9 @@ function buildReportTable(entries, firstColLabel) {
 }
 
 async function createWeeklyReport(days = 7) {
-  const start = new Date();
-  start.setDate(start.getDate() - Number(days));
-  start.setHours(0, 0, 0, 0);
+  const daysNumber = Number(days);
+  const now = new Date();
+  const start = new Date(now.getTime() - daysNumber * 24 * 60 * 60 * 1000);
 
   const withdrawalsSnap = await getDocs(
     query(collection(db, "withdrawals"), where("createdAt", ">=", Timestamp.fromDate(start)))
@@ -479,7 +479,7 @@ async function createWeeklyReport(days = 7) {
   const employeeEntries = Object.entries(byEmployee).sort((a, b) => b[1] - a[1]);
   const totalWithdrawals = withdrawalsSnap.docs.length;
 
-  refs.reportMeta.innerHTML = `الفترة: آخر ${days} أيام | عدد عمليات السحب: ${totalWithdrawals}`;
+  refs.reportMeta.innerHTML = `الفترة: آخر ${daysNumber} أيام (آخر ${daysNumber * 24} ساعة) | عدد عمليات السحب: ${totalWithdrawals}`;
   refs.reportByProduct.innerHTML = buildReportTable(productEntries, "المنتج");
   refs.reportByEmployee.innerHTML = buildReportTable(employeeEntries, "الموظف");
 }
