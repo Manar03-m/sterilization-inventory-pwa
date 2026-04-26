@@ -14,6 +14,7 @@ import {
   limit,
   where,
   Timestamp,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig, ADMIN_CODE } from "./firebase-config.js";
 
@@ -70,6 +71,7 @@ let productsCache = [];
 let employeesCache = [];
 let previousTabBeforeReport = "employee";
 let currentReportDays = 7;
+let isWithdrawSubmitting = false;
 const DEFAULT_PRODUCT_STOCK = 100;
 const DEFAULT_MIN_STOCK = 20;
 
@@ -149,6 +151,14 @@ function toast(message) {
   refs.toast.textContent = message;
   refs.toast.classList.remove("hidden");
   setTimeout(() => refs.toast.classList.add("hidden"), 2500);
+}
+
+function setWithdrawSubmittingState(isSubmitting) {
+  const submitBtn = refs.withdrawForm?.querySelector('button[type="submit"]');
+  if (!submitBtn) return;
+  submitBtn.disabled = isSubmitting;
+  submitBtn.style.opacity = isSubmitting ? "0.7" : "1";
+  submitBtn.textContent = isSubmitting ? "جاري التسجيل..." : "تسجيل السحب";
 }
 
 function switchTab(tab) {
@@ -457,6 +467,33 @@ function buildReportTable(entries, firstColLabel) {
   `;
 }
 
+function buildEmployeeDetailsTable(rows) {
+  if (!rows.length) {
+    return "<p>لا توجد بيانات ضمن هذه الفترة.</p>";
+  }
+
+  const tableRows = rows
+    .map(
+      (row) =>
+        `<tr><td>${row.employeeName}</td><td>${row.productName}</td><td>${row.quantity}</td><td>${row.createdAtText}</td></tr>`
+    )
+    .join("");
+
+  return `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>الموظف</th>
+          <th>المنتج المسحوب</th>
+          <th>الكمية</th>
+          <th>التاريخ</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
 async function createWeeklyReport(days = 7) {
   const daysNumber = Number(days);
   const now = new Date();
@@ -467,21 +504,27 @@ async function createWeeklyReport(days = 7) {
   );
 
   const byProduct = {};
-  const byEmployee = {};
+  const employeeDetails = [];
 
   withdrawalsSnap.docs.forEach((d) => {
     const w = d.data();
     byProduct[w.productName] = (byProduct[w.productName] || 0) + Number(w.quantity || 0);
-    byEmployee[w.employeeName] = (byEmployee[w.employeeName] || 0) + Number(w.quantity || 0);
+    employeeDetails.push({
+      employeeName: w.employeeName || "-",
+      productName: w.productName || "-",
+      quantity: Number(w.quantity || 0),
+      createdAtMs: w.createdAt?.toMillis ? w.createdAt.toMillis() : 0,
+      createdAtText: w.createdAt?.toDate ? w.createdAt.toDate().toLocaleString("ar") : "-",
+    });
   });
 
   const productEntries = Object.entries(byProduct).sort((a, b) => b[1] - a[1]);
-  const employeeEntries = Object.entries(byEmployee).sort((a, b) => b[1] - a[1]);
+  const employeeDetailsSorted = employeeDetails.sort((a, b) => b.createdAtMs - a.createdAtMs);
   const totalWithdrawals = withdrawalsSnap.docs.length;
 
   refs.reportMeta.innerHTML = `الفترة: آخر ${daysNumber} أيام (آخر ${daysNumber * 24} ساعة) | عدد عمليات السحب: ${totalWithdrawals}`;
   refs.reportByProduct.innerHTML = buildReportTable(productEntries, "المنتج");
-  refs.reportByEmployee.innerHTML = buildReportTable(employeeEntries, "الموظف");
+  refs.reportByEmployee.innerHTML = buildEmployeeDetailsTable(employeeDetailsSorted);
 }
 
 refs.tabBtns.forEach((btn) =>
@@ -499,42 +542,67 @@ refs.employeeCode.addEventListener("blur", async () => {
 
 refs.withdrawForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (isWithdrawSubmitting) return;
+  isWithdrawSubmitting = true;
+  setWithdrawSubmittingState(true);
 
-  if (!selectedEmployee) {
-    toast("تحقق من رمز الموظف أولا");
-    return;
+  try {
+    if (!selectedEmployee) {
+      toast("تحقق من رمز الموظف أولا");
+      return;
+    }
+
+    const product = productsCache.find((p) => p.id === refs.productSelect.value);
+    const quantity = Number(refs.quantity.value);
+    if (!product || !quantity || quantity < 1) {
+      toast("البيانات غير مكتملة");
+      return;
+    }
+    if (quantity > Number(product.stock || 0)) {
+      toast("الكمية المطلوبة اكبر من المتوفر");
+      return;
+    }
+
+    await runTransaction(db, async (transaction) => {
+      const productRef = doc(db, "products", product.id);
+      const productSnap = await transaction.get(productRef);
+      if (!productSnap.exists()) {
+        throw new Error("المنتج غير موجود");
+      }
+
+      const liveProduct = productSnap.data();
+      const liveStock = Number(liveProduct.stock || 0);
+      if (quantity > liveStock) {
+        throw new Error("الكمية المطلوبة اكبر من المتوفر");
+      }
+
+      const withdrawalRef = doc(collection(db, "withdrawals"));
+      transaction.set(withdrawalRef, {
+        employeeId: selectedEmployee.id,
+        employeeName: selectedEmployee.name,
+        productId: product.id,
+        productName: liveProduct.name || product.name,
+        quantity,
+        createdAt: Timestamp.now(),
+      });
+
+      transaction.update(productRef, {
+        stock: liveStock - quantity,
+      });
+    });
+
+    toast("تم تسجيل السحب");
+    refs.withdrawForm.reset();
+    refs.employeeName.value = "";
+    selectedEmployee = null;
+    await loadProducts();
+    await loadWithdrawals();
+  } catch (error) {
+    toast(error.message || "تعذر تسجيل السحب");
+  } finally {
+    isWithdrawSubmitting = false;
+    setWithdrawSubmittingState(false);
   }
-
-  const product = productsCache.find((p) => p.id === refs.productSelect.value);
-  const quantity = Number(refs.quantity.value);
-  if (!product || !quantity || quantity < 1) {
-    toast("البيانات غير مكتملة");
-    return;
-  }
-  if (quantity > Number(product.stock || 0)) {
-    toast("الكمية المطلوبة اكبر من المتوفر");
-    return;
-  }
-
-  await addDoc(collection(db, "withdrawals"), {
-    employeeId: selectedEmployee.id,
-    employeeName: selectedEmployee.name,
-    productId: product.id,
-    productName: product.name,
-    quantity,
-    createdAt: Timestamp.now(),
-  });
-
-  await updateDoc(doc(db, "products", product.id), {
-    stock: Number(product.stock) - quantity,
-  });
-
-  toast("تم تسجيل السحب");
-  refs.withdrawForm.reset();
-  refs.employeeName.value = "";
-  selectedEmployee = null;
-  await loadProducts();
-  await loadWithdrawals();
 });
 
 refs.adminLoginForm.addEventListener("submit", async (e) => {
