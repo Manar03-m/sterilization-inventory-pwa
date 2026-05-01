@@ -52,11 +52,7 @@ const refs = {
   reportDaysCustom: document.getElementById("reportDaysCustom"),
   applyReportRangeBtn: document.getElementById("applyReportRangeBtn"),
   reportMonthControls: document.getElementById("reportMonthControls"),
-  reportMonthSelect: document.getElementById("reportMonthSelect"),
-  reportYearSelect: document.getElementById("reportYearSelect"),
-  reportPrevMonthBtn: document.getElementById("reportPrevMonthBtn"),
-  reportNextMonthBtn: document.getElementById("reportNextMonthBtn"),
-  applyReportMonthBtn: document.getElementById("applyReportMonthBtn"),
+  reportMonthList: document.getElementById("reportMonthList"),
   printReportBtn: document.getElementById("printReportBtn"),
   reportMeta: document.getElementById("reportMeta"),
   reportByProduct: document.getElementById("reportByProduct"),
@@ -79,7 +75,7 @@ let productsCache = [];
 let employeesCache = [];
 let previousTabBeforeReport = "employee";
 let currentReportDays = 7;
-let reportMode = "days"; // "days" | "month"
+let reportMode = "month"; // "days" | "month"
 let reportMonth = new Date().getMonth(); // 0-11
 let reportYear = new Date().getFullYear();
 let isWithdrawSubmitting = false;
@@ -669,44 +665,38 @@ function renderReportFromWithdrawalDocs(metaText, withdrawalDocs) {
   refs.reportByEmployee.innerHTML = buildEmployeeDetailsTable(employeeDetailsSorted);
 }
 
-function initReportMonthSelectors() {
-  if (!refs.reportMonthSelect || !refs.reportYearSelect) return;
+const REPORT_MONTH_LIST_COUNT = 36;
 
-  refs.reportMonthSelect.innerHTML = "";
-  for (let m = 0; m < 12; m += 1) {
-    const label = new Date(2000, m, 1).toLocaleString("ar", { month: "long" });
-    const option = document.createElement("option");
-    option.value = String(m);
-    option.textContent = label;
-    refs.reportMonthSelect.appendChild(option);
+function renderReportMonthList() {
+  if (!refs.reportMonthList) return;
+
+  const anchor = new Date();
+  const endY = anchor.getFullYear();
+  const endM = anchor.getMonth();
+
+  refs.reportMonthList.innerHTML = "";
+  for (let i = 0; i < REPORT_MONTH_LIST_COUNT; i += 1) {
+    const d = new Date(endY, endM - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "report-month-item";
+    btn.setAttribute("role", "listitem");
+    btn.dataset.year = String(y);
+    btn.dataset.month = String(m);
+
+    const label = d.toLocaleString("ar", { month: "long", year: "numeric" });
+    const isCurrentCalendarMonth = i === 0;
+    const isSelected = y === reportYear && m === reportMonth;
+
+    btn.textContent = isCurrentCalendarMonth ? `${label} — الشهر الحالي` : label;
+    if (isCurrentCalendarMonth) btn.classList.add("report-month-item--current");
+    if (isSelected) btn.classList.add("active");
+
+    refs.reportMonthList.appendChild(btn);
   }
-
-  const currentYear = new Date().getFullYear();
-  const minYear = Math.min(currentYear - 10, reportYear);
-  const maxYear = Math.max(currentYear + 1, reportYear);
-  refs.reportYearSelect.innerHTML = "";
-  for (let y = minYear; y <= maxYear; y += 1) {
-    const option = document.createElement("option");
-    option.value = String(y);
-    option.textContent = String(y);
-    refs.reportYearSelect.appendChild(option);
-  }
-
-  syncReportMonthSelectors();
-}
-
-function syncReportMonthSelectors() {
-  if (!refs.reportMonthSelect || !refs.reportYearSelect) return;
-  refs.reportMonthSelect.value = String(reportMonth);
-  refs.reportYearSelect.value = String(reportYear);
-}
-
-function shiftReportMonth(deltaMonths) {
-  const base = new Date(reportYear, reportMonth, 1);
-  base.setMonth(base.getMonth() + deltaMonths);
-  reportYear = base.getFullYear();
-  reportMonth = base.getMonth();
-  syncReportMonthSelectors();
 }
 
 function updateReportModeUI() {
@@ -722,7 +712,7 @@ async function refreshActiveReport() {
   updateReportModeUI();
 
   if (reportMode === "month") {
-    initReportMonthSelectors();
+    renderReportMonthList();
     await createMonthReport(reportYear, reportMonth);
     return;
   }
@@ -919,12 +909,11 @@ refs.seedEmployeesBtn.addEventListener("click", async () => {
 });
 
 refs.weeklyReportBtn.addEventListener("click", async () => {
-  reportMode = refs.reportModeSelect?.value === "month" ? "month" : "days";
-  if (reportMode === "month") {
-    const now = new Date();
-    reportMonth = now.getMonth();
-    reportYear = now.getFullYear();
-  }
+  if (refs.reportModeSelect) refs.reportModeSelect.value = "month";
+  reportMode = "month";
+  const now = new Date();
+  reportMonth = now.getMonth();
+  reportYear = now.getFullYear();
   updateReportModeUI();
   await refreshActiveReport();
   openReportPage();
@@ -970,35 +959,14 @@ refs.applyReportRangeBtn.addEventListener("click", async () => {
   toast("تم تحديث الجرد");
 });
 
-refs.reportPrevMonthBtn?.addEventListener("click", async () => {
-  if (refs.reportModeSelect?.value !== "month") return;
-  shiftReportMonth(-1);
-  initReportMonthSelectors();
+refs.reportMonthList?.addEventListener("click", async (e) => {
+  const item = e.target.closest(".report-month-item");
+  if (!item || refs.reportModeSelect?.value !== "month") return;
+  reportYear = Number(item.dataset.year);
+  reportMonth = Number(item.dataset.month);
+  if (!Number.isFinite(reportYear) || !Number.isFinite(reportMonth)) return;
+  renderReportMonthList();
   await createMonthReport(reportYear, reportMonth);
-});
-
-refs.reportNextMonthBtn?.addEventListener("click", async () => {
-  if (refs.reportModeSelect?.value !== "month") return;
-  shiftReportMonth(1);
-  initReportMonthSelectors();
-  await createMonthReport(reportYear, reportMonth);
-});
-
-refs.applyReportMonthBtn?.addEventListener("click", async () => {
-  if (refs.reportModeSelect?.value !== "month") return;
-  reportMonth = Number(refs.reportMonthSelect?.value);
-  reportYear = Number(refs.reportYearSelect?.value);
-  if (!Number.isFinite(reportMonth) || reportMonth < 0 || reportMonth > 11) {
-    toast("اختيار شهر غير صالح");
-    return;
-  }
-  if (!Number.isFinite(reportYear)) {
-    toast("اختيار سنة غير صالح");
-    return;
-  }
-  initReportMonthSelectors();
-  await createMonthReport(reportYear, reportMonth);
-  toast("تم تحديث جرد الشهر");
 });
 
 refs.reportDaysCustom.addEventListener("keydown", async (e) => {

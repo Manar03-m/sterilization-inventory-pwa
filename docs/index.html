@@ -56,7 +56,7 @@
           <div class="row">
             <button id="refreshBtn" class="ghost-btn">تحديث</button>
             <button id="seedProductsBtn" class="ghost-btn">إضافة المنتجات الأساسية</button>
-            <button id="weeklyReportBtn" class="ghost-btn">عرض الجرد الاسبوعي</button>
+            <button id="weeklyReportBtn" class="ghost-btn">عرض الجرد</button>
           </div>
 
           <section class="sub-card">
@@ -103,15 +103,22 @@
       </section>
 
       <section id="reportSection" class="card hidden">
-        <h2>الجرد الأسبوعي</h2>
+        <h2>الجرد والتقارير</h2>
         <div class="row">
-          <select id="reportModeSelect">
-            <option value="days">حسب عدد الأيام</option>
-            <option value="month">حسب الشهر</option>
+          <select id="reportModeSelect" aria-label="نوع الجرد">
+            <option value="month" selected>جرد شهري (افتراضي)</option>
+            <option value="days">جرد بعدد أيام</option>
           </select>
         </div>
 
-        <div id="reportDaysControls" class="row">
+        <div id="reportMonthControls" class="report-month-panel hidden">
+          <p class="report-month-hint">
+            كل شهر له جرد منفصل. الشهر الحالي يظهر أولا؛ اختاري أي شهر سابق لعرض جرده.
+          </p>
+          <div id="reportMonthList" class="report-month-list" role="list"></div>
+        </div>
+
+        <div id="reportDaysControls" class="row hidden">
           <select id="reportDaysSelect">
             <option value="1">آخر يوم</option>
             <option value="2">آخر يومين</option>
@@ -123,14 +130,6 @@
           </select>
           <input id="reportDaysCustom" type="number" min="1" class="hidden" placeholder="ادخل عدد الأيام" />
           <button id="applyReportRangeBtn" class="ghost-btn">تحديث الجرد</button>
-        </div>
-
-        <div id="reportMonthControls" class="row hidden">
-          <button id="reportPrevMonthBtn" class="ghost-btn">الشهر السابق</button>
-          <select id="reportMonthSelect"></select>
-          <select id="reportYearSelect"></select>
-          <button id="reportNextMonthBtn" class="ghost-btn">الشهر التالي</button>
-          <button id="applyReportMonthBtn" class="ghost-btn">تحديث جرد الشهر</button>
         </div>
 
         <div class="row">

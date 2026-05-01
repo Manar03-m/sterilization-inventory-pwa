@@ -1,4 +1,4 @@
-const CACHE_NAME = "sterile-store-v3";
+const CACHE_NAME = "sterile-store-v4";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json"];
 
 self.addEventListener("install", (event) => {

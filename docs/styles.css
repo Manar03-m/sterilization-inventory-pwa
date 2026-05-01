@@ -215,6 +215,58 @@ button[type="submit"] {
   margin: 0.7rem 0;
 }
 
+.report-month-panel {
+  margin: 0.5rem 0 0.85rem;
+}
+
+.report-month-hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.88rem;
+  color: #5b4760;
+  line-height: 1.45;
+}
+
+.report-month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.35rem;
+  border: 1px solid #e8dce6;
+  border-radius: 8px;
+  background: #faf7fb;
+}
+
+.report-month-item {
+  display: block;
+  width: 100%;
+  text-align: right;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #e5d6e2;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+  color: #4a3548;
+}
+
+.report-month-item:hover {
+  border-color: #c4a7bf;
+  background: #fdfbff;
+}
+
+.report-month-item.active {
+  border-color: #8b5e83;
+  background: #f5edf6;
+  font-weight: 600;
+  color: #4f2f4a;
+}
+
+.report-month-item--current:not(.active) {
+  border-color: #c9b4c5;
+}
+
 .report-table {
   width: 100%;
   border-collapse: collapse;
@@ -254,9 +306,6 @@ button[type="submit"] {
   #closeReportBtn,
   #printReportBtn,
   #applyReportRangeBtn,
-  #applyReportMonthBtn,
-  #reportPrevMonthBtn,
-  #reportNextMonthBtn,
   #reportModeSelect,
   #reportDaysControls,
   #reportMonthControls {
