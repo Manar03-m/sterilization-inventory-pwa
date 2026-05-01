@@ -105,6 +105,13 @@
       <section id="reportSection" class="card hidden">
         <h2>الجرد الأسبوعي</h2>
         <div class="row">
+          <select id="reportModeSelect">
+            <option value="days">حسب عدد الأيام</option>
+            <option value="month">حسب الشهر</option>
+          </select>
+        </div>
+
+        <div id="reportDaysControls" class="row">
           <select id="reportDaysSelect">
             <option value="1">آخر يوم</option>
             <option value="2">آخر يومين</option>
@@ -116,6 +123,17 @@
           </select>
           <input id="reportDaysCustom" type="number" min="1" class="hidden" placeholder="ادخل عدد الأيام" />
           <button id="applyReportRangeBtn" class="ghost-btn">تحديث الجرد</button>
+        </div>
+
+        <div id="reportMonthControls" class="row hidden">
+          <button id="reportPrevMonthBtn" class="ghost-btn">الشهر السابق</button>
+          <select id="reportMonthSelect"></select>
+          <select id="reportYearSelect"></select>
+          <button id="reportNextMonthBtn" class="ghost-btn">الشهر التالي</button>
+          <button id="applyReportMonthBtn" class="ghost-btn">تحديث جرد الشهر</button>
+        </div>
+
+        <div class="row">
           <button id="printReportBtn" class="ghost-btn">طباعة / حفظ PDF</button>
           <button id="closeReportBtn" class="ghost-btn">إغلاق</button>
         </div>

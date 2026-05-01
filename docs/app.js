@@ -46,9 +46,17 @@ const refs = {
   seedProductsBtn: document.getElementById("seedProductsBtn"),
   weeklyReportBtn: document.getElementById("weeklyReportBtn"),
   closeReportBtn: document.getElementById("closeReportBtn"),
+  reportModeSelect: document.getElementById("reportModeSelect"),
+  reportDaysControls: document.getElementById("reportDaysControls"),
   reportDaysSelect: document.getElementById("reportDaysSelect"),
   reportDaysCustom: document.getElementById("reportDaysCustom"),
   applyReportRangeBtn: document.getElementById("applyReportRangeBtn"),
+  reportMonthControls: document.getElementById("reportMonthControls"),
+  reportMonthSelect: document.getElementById("reportMonthSelect"),
+  reportYearSelect: document.getElementById("reportYearSelect"),
+  reportPrevMonthBtn: document.getElementById("reportPrevMonthBtn"),
+  reportNextMonthBtn: document.getElementById("reportNextMonthBtn"),
+  applyReportMonthBtn: document.getElementById("applyReportMonthBtn"),
   printReportBtn: document.getElementById("printReportBtn"),
   reportMeta: document.getElementById("reportMeta"),
   reportByProduct: document.getElementById("reportByProduct"),
@@ -71,6 +79,9 @@ let productsCache = [];
 let employeesCache = [];
 let previousTabBeforeReport = "employee";
 let currentReportDays = 7;
+let reportMode = "days"; // "days" | "month"
+let reportMonth = new Date().getMonth(); // 0-11
+let reportYear = new Date().getFullYear();
 let isWithdrawSubmitting = false;
 const DEFAULT_PRODUCT_STOCK = 100;
 const DEFAULT_MIN_STOCK = 20;
@@ -633,19 +644,11 @@ function buildEmployeeDetailsTable(rows) {
   `;
 }
 
-async function createWeeklyReport(days = 7) {
-  const daysNumber = Number(days);
-  const now = new Date();
-  const start = new Date(now.getTime() - daysNumber * 24 * 60 * 60 * 1000);
-
-  const withdrawalsSnap = await getDocs(
-    query(collection(db, "withdrawals"), where("createdAt", ">=", Timestamp.fromDate(start)))
-  );
-
+function renderReportFromWithdrawalDocs(metaText, withdrawalDocs) {
   const byProduct = {};
   const employeeDetails = [];
 
-  withdrawalsSnap.docs.forEach((d) => {
+  withdrawalDocs.forEach((d) => {
     const w = d.data();
     byProduct[w.productName] = (byProduct[w.productName] || 0) + Number(w.quantity || 0);
     employeeDetails.push({
@@ -659,11 +662,103 @@ async function createWeeklyReport(days = 7) {
 
   const productEntries = Object.entries(byProduct).sort((a, b) => b[1] - a[1]);
   const employeeDetailsSorted = employeeDetails.sort((a, b) => b.createdAtMs - a.createdAtMs);
-  const totalWithdrawals = withdrawalsSnap.docs.length;
+  const totalWithdrawals = withdrawalDocs.length;
 
-  refs.reportMeta.innerHTML = `الفترة: آخر ${daysNumber} أيام (آخر ${daysNumber * 24} ساعة) | عدد عمليات السحب: ${totalWithdrawals}`;
+  refs.reportMeta.innerHTML = `${metaText} | عدد عمليات السحب: ${totalWithdrawals}`;
   refs.reportByProduct.innerHTML = buildReportTable(productEntries, "المنتج");
   refs.reportByEmployee.innerHTML = buildEmployeeDetailsTable(employeeDetailsSorted);
+}
+
+function initReportMonthSelectors() {
+  if (!refs.reportMonthSelect || !refs.reportYearSelect) return;
+
+  refs.reportMonthSelect.innerHTML = "";
+  for (let m = 0; m < 12; m += 1) {
+    const label = new Date(2000, m, 1).toLocaleString("ar", { month: "long" });
+    const option = document.createElement("option");
+    option.value = String(m);
+    option.textContent = label;
+    refs.reportMonthSelect.appendChild(option);
+  }
+
+  const currentYear = new Date().getFullYear();
+  const minYear = Math.min(currentYear - 10, reportYear);
+  const maxYear = Math.max(currentYear + 1, reportYear);
+  refs.reportYearSelect.innerHTML = "";
+  for (let y = minYear; y <= maxYear; y += 1) {
+    const option = document.createElement("option");
+    option.value = String(y);
+    option.textContent = String(y);
+    refs.reportYearSelect.appendChild(option);
+  }
+
+  syncReportMonthSelectors();
+}
+
+function syncReportMonthSelectors() {
+  if (!refs.reportMonthSelect || !refs.reportYearSelect) return;
+  refs.reportMonthSelect.value = String(reportMonth);
+  refs.reportYearSelect.value = String(reportYear);
+}
+
+function shiftReportMonth(deltaMonths) {
+  const base = new Date(reportYear, reportMonth, 1);
+  base.setMonth(base.getMonth() + deltaMonths);
+  reportYear = base.getFullYear();
+  reportMonth = base.getMonth();
+  syncReportMonthSelectors();
+}
+
+function updateReportModeUI() {
+  if (!refs.reportModeSelect) return;
+  refs.reportModeSelect.value = reportMode;
+  const isMonth = reportMode === "month";
+  refs.reportDaysControls?.classList.toggle("hidden", isMonth);
+  refs.reportMonthControls?.classList.toggle("hidden", !isMonth);
+}
+
+async function refreshActiveReport() {
+  reportMode = refs.reportModeSelect?.value === "month" ? "month" : "days";
+  updateReportModeUI();
+
+  if (reportMode === "month") {
+    initReportMonthSelectors();
+    await createMonthReport(reportYear, reportMonth);
+    return;
+  }
+
+  await createWeeklyReport(currentReportDays);
+}
+
+async function createWeeklyReport(days = 7) {
+  const daysNumber = Number(days);
+  const now = new Date();
+  const start = new Date(now.getTime() - daysNumber * 24 * 60 * 60 * 1000);
+
+  const withdrawalsSnap = await getDocs(
+    query(collection(db, "withdrawals"), where("createdAt", ">=", Timestamp.fromDate(start)))
+  );
+
+  renderReportFromWithdrawalDocs(
+    `الفترة: آخر ${daysNumber} أيام (آخر ${daysNumber * 24} ساعة)`,
+    withdrawalsSnap.docs
+  );
+}
+
+async function createMonthReport(year, monthIndex) {
+  const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const nextMonthStart = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+
+  const withdrawalsSnap = await getDocs(
+    query(
+      collection(db, "withdrawals"),
+      where("createdAt", ">=", Timestamp.fromDate(monthStart)),
+      where("createdAt", "<", Timestamp.fromDate(nextMonthStart))
+    )
+  );
+
+  const monthLabel = monthStart.toLocaleString("ar", { month: "long", year: "numeric" });
+  renderReportFromWithdrawalDocs(`الفترة: جرد شهر ${monthLabel}`, withdrawalsSnap.docs);
 }
 
 refs.tabBtns.forEach((btn) =>
@@ -824,13 +919,26 @@ refs.seedEmployeesBtn.addEventListener("click", async () => {
 });
 
 refs.weeklyReportBtn.addEventListener("click", async () => {
-  await createWeeklyReport(currentReportDays);
+  reportMode = refs.reportModeSelect?.value === "month" ? "month" : "days";
+  if (reportMode === "month") {
+    const now = new Date();
+    reportMonth = now.getMonth();
+    reportYear = now.getFullYear();
+  }
+  updateReportModeUI();
+  await refreshActiveReport();
   openReportPage();
+});
+
+refs.reportModeSelect?.addEventListener("change", async () => {
+  reportMode = refs.reportModeSelect.value === "month" ? "month" : "days";
+  updateReportModeUI();
+  await refreshActiveReport();
 });
 
 refs.closeReportBtn.addEventListener("click", () => closeReportPage());
 
-refs.reportDaysSelect.addEventListener("change", () => {
+refs.reportDaysSelect.addEventListener("change", async () => {
   const isCustom = refs.reportDaysSelect.value === "custom";
   refs.reportDaysCustom.classList.toggle("hidden", !isCustom);
   if (isCustom) {
@@ -838,11 +946,15 @@ refs.reportDaysSelect.addEventListener("change", () => {
     return;
   }
 
+  if (refs.reportModeSelect?.value === "month") return;
+
   currentReportDays = Number(refs.reportDaysSelect.value);
-  createWeeklyReport(currentReportDays);
+  await createWeeklyReport(currentReportDays);
 });
 
 refs.applyReportRangeBtn.addEventListener("click", async () => {
+  if (refs.reportModeSelect?.value === "month") return;
+
   if (refs.reportDaysSelect.value === "custom") {
     const customDays = Number(refs.reportDaysCustom.value);
     if (!Number.isFinite(customDays) || customDays < 1) {
@@ -858,9 +970,41 @@ refs.applyReportRangeBtn.addEventListener("click", async () => {
   toast("تم تحديث الجرد");
 });
 
+refs.reportPrevMonthBtn?.addEventListener("click", async () => {
+  if (refs.reportModeSelect?.value !== "month") return;
+  shiftReportMonth(-1);
+  initReportMonthSelectors();
+  await createMonthReport(reportYear, reportMonth);
+});
+
+refs.reportNextMonthBtn?.addEventListener("click", async () => {
+  if (refs.reportModeSelect?.value !== "month") return;
+  shiftReportMonth(1);
+  initReportMonthSelectors();
+  await createMonthReport(reportYear, reportMonth);
+});
+
+refs.applyReportMonthBtn?.addEventListener("click", async () => {
+  if (refs.reportModeSelect?.value !== "month") return;
+  reportMonth = Number(refs.reportMonthSelect?.value);
+  reportYear = Number(refs.reportYearSelect?.value);
+  if (!Number.isFinite(reportMonth) || reportMonth < 0 || reportMonth > 11) {
+    toast("اختيار شهر غير صالح");
+    return;
+  }
+  if (!Number.isFinite(reportYear)) {
+    toast("اختيار سنة غير صالح");
+    return;
+  }
+  initReportMonthSelectors();
+  await createMonthReport(reportYear, reportMonth);
+  toast("تم تحديث جرد الشهر");
+});
+
 refs.reportDaysCustom.addEventListener("keydown", async (e) => {
   if (e.key !== "Enter") return;
   e.preventDefault();
+  if (refs.reportModeSelect?.value === "month") return;
   const customDays = Number(refs.reportDaysCustom.value);
   if (!Number.isFinite(customDays) || customDays < 1) {
     toast("ادخلي عدد أيام صحيح");

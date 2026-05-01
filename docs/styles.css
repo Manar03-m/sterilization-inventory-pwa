@@ -253,7 +253,13 @@ button[type="submit"] {
 
   #closeReportBtn,
   #printReportBtn,
-  #applyReportRangeBtn {
+  #applyReportRangeBtn,
+  #applyReportMonthBtn,
+  #reportPrevMonthBtn,
+  #reportNextMonthBtn,
+  #reportModeSelect,
+  #reportDaysControls,
+  #reportMonthControls {
     display: none !important;
   }
 
