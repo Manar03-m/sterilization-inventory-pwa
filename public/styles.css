@@ -256,6 +256,10 @@ button[type="submit"] {
   #applyReportRangeBtn {
     display: none !important;
   }
+
+  #employeeReportSection {
+    display: none !important;
+  }
 }
 
 @media (max-width: 700px) {

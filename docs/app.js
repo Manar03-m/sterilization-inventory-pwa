@@ -161,6 +161,15 @@ function setWithdrawSubmittingState(isSubmitting) {
   submitBtn.textContent = isSubmitting ? "جاري التسجيل..." : "تسجيل السحب";
 }
 
+function normalizeProductName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
+function findProductByName(name) {
+  const normalized = normalizeProductName(name);
+  return productsCache.find((p) => normalizeProductName(p.name) === normalized) || null;
+}
+
 function switchTab(tab) {
   previousTabBeforeReport = tab;
   refs.tabBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
@@ -191,9 +200,13 @@ function renderProductsSelect() {
       const stock = Number(p.stock || 0);
       const min = Number(p.minStock || 0);
       const lowTag = stock <= min ? " - منخفض" : "";
+      const outTag = stock <= 0 ? " - نفد المخزون" : "";
       const option = document.createElement("option");
       option.value = p.id;
-      option.textContent = `${p.name} (متوفر: ${stock}${lowTag})`;
+      option.textContent = `${p.name} (متوفر: ${stock}${lowTag}${outTag})`;
+      if (stock <= 0) {
+        option.disabled = true;
+      }
       refs.productSelect.appendChild(option);
     });
 }
@@ -411,9 +424,135 @@ async function loadWithdrawals() {
       : "-";
     const row = document.createElement("div");
     row.className = "list-item";
-    row.innerHTML = `<span>${data.employeeName} سحب ${data.quantity} من ${data.productName}</span><small>${time}</small>`;
+    row.innerHTML = `
+      <span>${data.employeeName} سحب ${data.quantity} من ${data.productName}</span>
+      <div class="row">
+        <small>${time}</small>
+        <button data-edit-withdrawal="${w.id}" class="ghost-btn">تعديل</button>
+        <button data-delete-withdrawal="${w.id}" class="danger-btn">حذف</button>
+      </div>
+    `;
+    row
+      .querySelector(`[data-edit-withdrawal="${w.id}"]`)
+      .addEventListener("click", async () => {
+        await editWithdrawalEntry(w.id);
+      });
+    row
+      .querySelector(`[data-delete-withdrawal="${w.id}"]`)
+      .addEventListener("click", async () => {
+        const confirmed = window.confirm("حذف عملية السحب هذه؟");
+        if (!confirmed) return;
+        await deleteWithdrawalAndRestoreStock(w.id);
+      });
     refs.withdrawalsList.appendChild(row);
   });
+}
+
+async function deleteWithdrawalAndRestoreStock(withdrawalId) {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const withdrawalRef = doc(db, "withdrawals", withdrawalId);
+      const withdrawalSnap = await transaction.get(withdrawalRef);
+      if (!withdrawalSnap.exists()) return;
+
+      const withdrawal = withdrawalSnap.data();
+      const quantity = Number(withdrawal.quantity || 0);
+      const productRef = doc(db, "products", withdrawal.productId);
+      const productSnap = await transaction.get(productRef);
+
+      if (productSnap.exists()) {
+        const currentStock = Number(productSnap.data().stock || 0);
+        transaction.update(productRef, { stock: currentStock + quantity });
+      }
+
+      transaction.delete(withdrawalRef);
+    });
+
+    toast("تم حذف عملية السحب");
+    await Promise.all([loadWithdrawals(), loadProducts()]);
+  } catch (error) {
+    toast(error.message || "تعذر حذف العملية");
+  }
+}
+
+async function editWithdrawalEntry(withdrawalId) {
+  const withdrawalRef = doc(db, "withdrawals", withdrawalId);
+  const withdrawalSnap = await getDoc(withdrawalRef);
+  if (!withdrawalSnap.exists()) {
+    toast("عملية السحب غير موجودة");
+    return;
+  }
+
+  const withdrawal = withdrawalSnap.data();
+  const newProductNameInput = window.prompt(
+    "اسم المنتج الجديد (اتركيه كما هو إذا لا يوجد تغيير):",
+    withdrawal.productName || ""
+  );
+  if (newProductNameInput === null) return;
+
+  const newQuantityInput = window.prompt("الكمية الجديدة:", String(withdrawal.quantity || ""));
+  if (newQuantityInput === null) return;
+  const newQuantity = Number(newQuantityInput);
+  if (!Number.isFinite(newQuantity) || newQuantity < 1) {
+    toast("ادخلي كمية صحيحة");
+    return;
+  }
+
+  const newProduct = findProductByName(newProductNameInput);
+  if (!newProduct) {
+    toast("المنتج غير موجود. اكتبي الاسم كما هو في المستودع");
+    return;
+  }
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const liveWithdrawalSnap = await transaction.get(withdrawalRef);
+      if (!liveWithdrawalSnap.exists()) {
+        throw new Error("عملية السحب غير موجودة");
+      }
+      const liveWithdrawal = liveWithdrawalSnap.data();
+      const oldQuantity = Number(liveWithdrawal.quantity || 0);
+      const oldProductId = liveWithdrawal.productId;
+      const oldProductRef = doc(db, "products", oldProductId);
+      const newProductRef = doc(db, "products", newProduct.id);
+
+      const oldProductSnap = await transaction.get(oldProductRef);
+      const newProductSnap =
+        oldProductId === newProduct.id ? oldProductSnap : await transaction.get(newProductRef);
+
+      if (!oldProductSnap.exists() || !newProductSnap.exists()) {
+        throw new Error("المنتج غير موجود");
+      }
+
+      const oldStock = Number(oldProductSnap.data().stock || 0);
+      const newStock = Number(newProductSnap.data().stock || 0);
+
+      if (oldProductId === newProduct.id) {
+        const diff = newQuantity - oldQuantity;
+        if (diff > 0 && diff > oldStock) {
+          throw new Error("الكمية الجديدة اكبر من المتوفر");
+        }
+        transaction.update(oldProductRef, { stock: oldStock - diff });
+      } else {
+        if (newQuantity > newStock) {
+          throw new Error("الكمية الجديدة اكبر من المتوفر في المنتج الجديد");
+        }
+        transaction.update(oldProductRef, { stock: oldStock + oldQuantity });
+        transaction.update(newProductRef, { stock: newStock - newQuantity });
+      }
+
+      transaction.update(withdrawalRef, {
+        productId: newProduct.id,
+        productName: newProduct.name,
+        quantity: newQuantity,
+      });
+    });
+
+    toast("تم تعديل عملية السحب");
+    await Promise.all([loadWithdrawals(), loadProducts()]);
+  } catch (error) {
+    toast(error.message || "تعذر تعديل العملية");
+  }
 }
 
 async function loadNotice() {
@@ -560,6 +699,24 @@ refs.withdrawForm.addEventListener("submit", async (e) => {
     }
     if (quantity > Number(product.stock || 0)) {
       toast("الكمية المطلوبة اكبر من المتوفر");
+      return;
+    }
+
+    // منع التكرار العرضي: نفس الموظف + نفس المنتج + نفس الكمية خلال آخر 15 ثانية.
+    const duplicateWindowMs = 15 * 1000;
+    const duplicateStart = new Date(Date.now() - duplicateWindowMs);
+    const duplicateSnap = await getDocs(
+      query(
+        collection(db, "withdrawals"),
+        where("employeeId", "==", selectedEmployee.id),
+        where("productId", "==", product.id),
+        where("quantity", "==", quantity),
+        where("createdAt", ">=", Timestamp.fromDate(duplicateStart)),
+        limit(1)
+      )
+    );
+    if (!duplicateSnap.empty) {
+      toast("تم تسجيل نفس السحب قبل لحظات. تم منع التكرار");
       return;
     }
 
