@@ -4,6 +4,8 @@ import {
   collection,
   doc,
   getDocs,
+  getDocsFromServer,
+  getDocFromServer,
   addDoc,
   deleteDoc,
   updateDoc,
@@ -286,7 +288,7 @@ function renderProductsList() {
         </span>
       </div>
       <div class="row product-controls">
-        <input data-stock-input="${prod.id}" type="number" min="0" value="${stock}" placeholder="الكمية" />
+        <input data-stock-input="${prod.id}" data-stock-rendered="${stock}" type="number" min="0" value="${stock}" placeholder="الكمية" />
         <input data-min-input="${prod.id}" type="number" min="0" value="${minStock}" placeholder="الحد الأدنى" />
         <button data-save-product="${prod.id}">حفظ التعديلات</button>
         <button data-delete="${prod.id}" class="danger-btn">حذف</button>
@@ -308,15 +310,34 @@ function renderProductsList() {
         toast("ادخلي قيم صحيحة للاسم والكمية والحد الأدنى");
         return;
       }
-      await saveProductDetails(prod.id, newName, newStock, newMinStock);
+      const baseline = Number(stockInput.dataset.stockRendered);
+      await saveProductDetails(prod.id, newName, newStock, newMinStock, baseline);
     });
     row.querySelector(`[data-delete="${prod.id}"]`).addEventListener("click", () => removeProduct(prod.id));
     refs.productsList.appendChild(row);
   });
 }
 
-async function saveProductDetails(productId, nextName, nextStock, nextMinStock) {
-  await updateDoc(doc(db, "products", productId), {
+async function saveProductDetails(productId, nextName, nextStock, nextMinStock, stockRenderedBaseline) {
+  const ref = doc(db, "products", productId);
+  let fresh;
+  try {
+    fresh = await getDocFromServer(ref);
+  } catch {
+    fresh = await getDoc(ref);
+  }
+  if (!fresh.exists()) {
+    toast("المنتج غير موجود");
+    return;
+  }
+  const serverStock = Number(fresh.data().stock || 0);
+  const baseline = Number.isFinite(stockRenderedBaseline) ? stockRenderedBaseline : serverStock;
+  if (nextStock === baseline && serverStock !== baseline) {
+    toast("تغيّرت الكمية على السيرفر منذ فتح الصفحة (سحب أو جهاز آخر). راجعي القيم ثم احفظي مجدداً.");
+    await loadProducts();
+    return;
+  }
+  await updateDoc(ref, {
     name: nextName,
     stock: nextStock,
     minStock: nextMinStock,
@@ -394,7 +415,13 @@ async function seedDefaultEmployees() {
 }
 
 async function loadProducts() {
-  let snap = await getDocs(query(collection(db, "products"), orderBy("name", "asc")));
+  const productsQuery = query(collection(db, "products"), orderBy("name", "asc"));
+  let snap;
+  try {
+    snap = await getDocsFromServer(productsQuery);
+  } catch {
+    snap = await getDocs(productsQuery);
+  }
   if (snap.empty) {
     // أول تشغيل: إدخال المنتجات الأساسية تلقائيا حتى تظهر مباشرة للموظفين.
     for (const name of DEFAULT_PRODUCTS) {
@@ -406,7 +433,11 @@ async function loadProducts() {
         createdAt: Timestamp.now(),
       });
     }
-    snap = await getDocs(query(collection(db, "products"), orderBy("name", "asc")));
+    try {
+      snap = await getDocsFromServer(productsQuery);
+    } catch {
+      snap = await getDocs(productsQuery);
+    }
   }
 
   productsCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -1023,6 +1054,15 @@ window.addEventListener("appinstalled", () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  const adminOpen = !refs.adminSection.classList.contains("hidden");
+  const loggedIn = !refs.adminPanel.classList.contains("hidden");
+  if (adminOpen && loggedIn) {
+    loadProducts().catch(() => {});
+  }
+});
 
 switchTab("employee");
 loadProducts();
